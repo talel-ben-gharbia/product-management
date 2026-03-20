@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
 import {
   Sidebar,
   SidebarContent,
@@ -20,8 +21,16 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { Grid2x2, LayoutDashboard, LogOut, Package, Store } from "lucide-react"
+import { Grid2x2, LayoutDashboard, LogOut, Package, Store, UserRound, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
+
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { href: "/dashboard/categories", label: "Categories", icon: Grid2x2 },
+  { href: "/dashboard/products", label: "Produits", icon: Package },
+  { href: "/dashboard/clients", label: "Clients", icon: UserRound },
+  { href: "/dashboard/ventes", label: "Ventes", icon: ShoppingCart },
+]
 
 export default function DashboardLayout({
   children,
@@ -55,7 +64,7 @@ export default function DashboardLayout({
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       if (event === "SIGNED_OUT" || !session) {
         router.replace("/")
       }
@@ -112,46 +121,28 @@ export default function DashboardLayout({
             <SidebarGroupLabel className="uppercase tracking-wide text-[11px] text-muted-foreground">
               Navigation
             </SidebarGroupLabel>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard"}
-                  variant="outline"
-                  className="h-9"
-                >
-                  <Link href="/dashboard">
-                    <LayoutDashboard className="size-4" />
-                    <span>Tableau de bord</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/categories"}
-                  variant="outline"
-                  className="h-9"
-                >
-                  <Link href="/dashboard/categories">
-                    <Grid2x2 className="size-4" />
-                    <span>Categories</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === "/dashboard/products"}
-                  variant="outline"
-                  className="h-9"
-                >
-                  <Link href="/dashboard/products">
-                    <Package className="size-4" />
-                    <span>Produits</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+            <SidebarMenu className="gap-1.5">
+              {NAV_ITEMS.map((item) => {
+                const isActive = pathname === item.href
+                const Icon = item.icon
+
+                return (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="h-10 rounded-xl px-2.5 text-[13px] font-medium text-sidebar-foreground/80 transition-all hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm data-[active=true]:ring-1 data-[active=true]:ring-sidebar-border/70"
+                    >
+                      <Link href={item.href}>
+                        <span className="flex size-7 items-center justify-center rounded-lg bg-sidebar-accent/50">
+                          <Icon className="size-4" />
+                        </span>
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
@@ -172,7 +163,7 @@ export default function DashboardLayout({
       </Sidebar>
 
       <SidebarInset>
-        <header className="flex h-14 items-center border-b bg-background/70 px-3 md:px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <header className="flex h-14 items-center border-b bg-background/70 px-3 md:px-4 backdrop-blur supports-backdrop-filter:bg-background/60">
           <SidebarTrigger className="shrink-0" />
           <h1 className="ml-2 truncate text-sm font-medium">Espace de gestion</h1>
         </header>

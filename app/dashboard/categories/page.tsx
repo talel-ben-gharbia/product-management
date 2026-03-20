@@ -11,7 +11,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Dialog,
@@ -52,35 +51,11 @@ export default function CategoriesPage() {
   const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([])
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
     name: true,
   })
   const [columnsOpen, setColumnsOpen] = useState(false)
-
-  const toggleRowSelection = (categoryId: number) => {
-    setSelectedCategories((prev) =>
-      prev.includes(categoryId)
-        ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
-    )
-  }
-
-  const toggleAllRowsSelection = () => {
-    if (selectedCategories.length === paginatedCategories.length) {
-      setSelectedCategories([])
-    } else {
-      setSelectedCategories(paginatedCategories.map((c) => c.id))
-    }
-  }
-
-  const toggleColumnVisibility = (column: string) => {
-    setVisibleColumns((prev) => ({
-      ...prev,
-      [column]: !prev[column as keyof typeof prev],
-    }))
-  }
 
   const getCurrentUserId = useCallback(async () => {
     const {
@@ -277,7 +252,7 @@ export default function CategoriesPage() {
               Ajouter categorie
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="app-dialog-content">
             <DialogHeader>
               <DialogTitle>Nouvelle categorie</DialogTitle>
               <DialogDescription>
@@ -311,7 +286,7 @@ export default function CategoriesPage() {
         <>
           <div className="flex items-center justify-between gap-3">
             <Input
-              placeholder="Filter categories..."
+              placeholder="Rechercher une categorie..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="flex-1 border rounded-lg px-4 py-2 text-sm"
@@ -320,14 +295,19 @@ export default function CategoriesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 transition-colors"
                 onClick={() => setColumnsOpen(!columnsOpen)}
               >
-                Columns
-                <ChevronDown className="size-4" />
+                Colonnes
+                <ChevronDown className={`size-4 transition-transform duration-200 ${columnsOpen ? "rotate-180" : "rotate-0"}`} />
               </Button>
-              {columnsOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10">
+              <div
+                className={`columns-panel w-48 ${
+                  columnsOpen
+                    ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                    : "pointer-events-none -translate-y-1 scale-95 opacity-0"
+                }`}
+              >
                   <div className="p-2 space-y-2">
                     {[
                       { key: "id", label: "ID" },
@@ -349,7 +329,6 @@ export default function CategoriesPage() {
                     ))}
                   </div>
                 </div>
-              )}
             </div>
           </div>
 
@@ -407,7 +386,7 @@ export default function CategoriesPage() {
 
               <div className="flex items-center justify-between pt-4">
                 <span className="text-sm text-muted-foreground">
-                  {filteredCategories.length} item(s)
+                  {filteredCategories.length} element(s)
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -416,7 +395,7 @@ export default function CategoriesPage() {
                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                   >
-                    Previous
+                    Precedent
                   </Button>
                   <Button
                     variant="outline"
@@ -424,7 +403,7 @@ export default function CategoriesPage() {
                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                   >
-                    Next
+                    Suivant
                   </Button>
                 </div>
               </div>
@@ -432,25 +411,25 @@ export default function CategoriesPage() {
               {/* Delete Confirmation Dialog */}
               {deletingCategoryId && (
                 <AlertDialog open={true}>
-                  <AlertDialogContent size="sm">
+                  <AlertDialogContent size="sm" className="app-alert-content">
                     <AlertDialogHeader>
                       <div className="mb-2 inline-flex size-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                         <MoreHorizontal className="size-5" />
                       </div>
-                      <AlertDialogTitle>Delete Category?</AlertDialogTitle>
+                      <AlertDialogTitle>Supprimer la categorie ?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure? This action cannot be undone.
+                        Cette action est irreversible.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel onClick={() => setDeletingCategoryId(null)}>
-                        Cancel
+                        Annuler
                       </AlertDialogCancel>
                       <AlertDialogAction
                         variant="destructive"
                         onClick={() => handleDeleteCategory(deletingCategoryId)}
                       >
-                        Delete
+                        Supprimer
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -484,7 +463,7 @@ export default function CategoriesPage() {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="app-dialog-content">
           <DialogHeader>
             <DialogTitle>Modifier la categorie</DialogTitle>
             <DialogDescription>

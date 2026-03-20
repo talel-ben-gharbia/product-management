@@ -127,3 +127,25 @@
     @apply font-sans;
     }
 }
+
+@layer components {
+  .app-select {
+    @apply h-9 w-full appearance-none rounded-lg border border-input bg-card px-3 pr-9 text-sm shadow-xs outline-none transition-all duration-200;
+    @apply hover:border-muted-foreground/40 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/40;
+  }
+
+  .columns-panel {
+    @apply absolute right-0 mt-2 rounded-lg border bg-card shadow-lg z-10;
+    @apply origin-top-right transition-all duration-200;
+  }
+
+  .app-dialog-content {
+    @apply rounded-xl border bg-card/95 shadow-2xl backdrop-blur-sm;
+    @apply data-[state=open]:duration-200 data-[state=closed]:duration-150;
+  }
+
+  .app-alert-content {
+    @apply rounded-xl border bg-card/95 shadow-2xl backdrop-blur-sm;
+    @apply data-[state=open]:duration-200 data-[state=closed]:duration-150;
+  }
+}

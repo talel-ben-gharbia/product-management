@@ -19,6 +19,33 @@ export type Database = {
         }
         Relationships: []
       }
+      client: {
+        Row: {
+          id: number
+          full_name: string
+          state: boolean
+          adress: string | null
+          phone: string | null
+          joined_at: string | null
+        }
+        Insert: {
+          id?: number
+          full_name: string
+          state?: boolean
+          adress?: string | null
+          phone?: string | null
+          joined_at?: string | null
+        }
+        Update: {
+          id?: number
+          full_name?: string
+          state?: boolean
+          adress?: string | null
+          phone?: string | null
+          joined_at?: string | null
+        }
+        Relationships: []
+      }
       produit: {
         Row: {
           id: number
@@ -49,6 +76,39 @@ export type Database = {
           created_at?: string | null
           categorie_id?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      vente: {
+        Row: {
+          id: number
+          product_id: number
+          client_id: number
+          quantity: number
+          total: number | null
+          credit: number | null
+          date_credit: string | null
+          date: string | null
+        }
+        Insert: {
+          id?: number
+          product_id: number
+          client_id: number
+          quantity: number
+          total?: number | null
+          credit?: number | null
+          date_credit?: string | null
+          date?: string | null
+        }
+        Update: {
+          id?: number
+          product_id?: number
+          client_id?: number
+          quantity?: number
+          total?: number | null
+          credit?: number | null
+          date_credit?: string | null
+          date?: string | null
         }
         Relationships: []
       }

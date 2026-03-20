@@ -11,7 +11,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Dialog,
@@ -27,9 +26,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
+import { CustomSelect } from "@/components/ui/custom-select"
 import type { Database } from "@/lib/database.types"
 import { supabase } from "@/lib/supabase"
 import { Loader2, Package, Plus, ChevronDown, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 type Product = Pick<
@@ -69,7 +70,6 @@ export default function ProductsPage() {
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([])
   const [visibleColumns, setVisibleColumns] = useState({
     id: true,
     name: true,
@@ -79,30 +79,28 @@ export default function ProductsPage() {
   })
   const [columnsOpen, setColumnsOpen] = useState(false)
 
-  const hasCategories = categories.length > 0
-
-  const toggleRowSelection = (productId: number) => {
-    setSelectedProducts((prev) =>
-      prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
-    )
-  }
-
-  const toggleAllRowsSelection = () => {
-    if (selectedProducts.length === paginatedProducts.length) {
-      setSelectedProducts([])
-    } else {
-      setSelectedProducts(paginatedProducts.map((p) => p.id))
+  const parseOptionalNumber = (value: string) => {
+    if (value.trim() === "") {
+      return null
     }
+
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? null : parsed
   }
 
-  const toggleColumnVisibility = (column: string) => {
-    setVisibleColumns((prev) => ({
-      ...prev,
-      [column]: !prev[column as keyof typeof prev],
-    }))
+  const getStockBadgeClassName = (stock: number) => {
+    if (stock < 10) {
+      return "bg-red-100 text-red-800 border-red-300"
+    }
+
+    if (stock <= 30) {
+      return "bg-yellow-100 text-yellow-800 border-yellow-300"
+    }
+
+    return "bg-green-100 text-green-800 border-green-300"
   }
+
+  const hasCategories = categories.length > 0
 
   const getCurrentUserId = useCallback(async () => {
     const {
@@ -188,6 +186,19 @@ export default function ProductsPage() {
   async function handleAddProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    const parsedPrice = parseOptionalNumber(newPrice)
+    const parsedStock = parseOptionalNumber(newStock)
+
+    if (parsedPrice !== null && parsedPrice < 0) {
+      toast.error("Le prix doit etre superieur ou egal a 0")
+      return
+    }
+
+    if (parsedStock !== null && (!Number.isInteger(parsedStock) || parsedStock < 0)) {
+      toast.error("Le stock doit etre un nombre entier superieur ou egal a 0")
+      return
+    }
+
     if (!newCategoryId) {
       toast.error("Selectionnez une categorie")
       return
@@ -202,8 +213,8 @@ export default function ProductsPage() {
     setIsSubmitting(true)
     const { error: insertError } = await supabase.from("produit").insert({
       name: newName.trim(),
-      price: newPrice ? Number(newPrice) : null,
-      stock: newStock ? Number(newStock) : null,
+      price: parsedPrice,
+      stock: parsedStock,
       description: newDescription.trim() || null,
       categorie_id: Number(newCategoryId),
       user_id: userId,
@@ -239,6 +250,19 @@ export default function ProductsPage() {
   async function handleUpdateProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    const parsedPrice = parseOptionalNumber(editPrice)
+    const parsedStock = parseOptionalNumber(editStock)
+
+    if (parsedPrice !== null && parsedPrice < 0) {
+      toast.error("Le prix doit etre superieur ou egal a 0")
+      return
+    }
+
+    if (parsedStock !== null && (!Number.isInteger(parsedStock) || parsedStock < 0)) {
+      toast.error("Le stock doit etre un nombre entier superieur ou egal a 0")
+      return
+    }
+
     if (!editingProduct) {
       return
     }
@@ -259,8 +283,8 @@ export default function ProductsPage() {
       .from("produit")
       .update({
         name: editName.trim(),
-        price: editPrice ? Number(editPrice) : null,
-        stock: editStock ? Number(editStock) : null,
+        price: parsedPrice,
+        stock: parsedStock,
         description: editDescription.trim() || null,
         categorie_id: Number(editCategoryId),
       })
@@ -352,7 +376,7 @@ export default function ProductsPage() {
               Ajouter produit
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="app-dialog-content">
             <DialogHeader>
               <DialogTitle>Nouveau produit</DialogTitle>
               <DialogDescription>
@@ -401,20 +425,15 @@ export default function ProductsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="product-category">Categorie</Label>
-                <select
-                  id="product-category"
-                  className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                <CustomSelect
                   value={newCategoryId}
-                  onChange={(event) => setNewCategoryId(event.target.value)}
-                  required
-                >
-                  <option value="">Choisir une categorie</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setNewCategoryId}
+                  placeholder="Choisir une categorie"
+                  options={categories.map((category) => ({
+                    value: String(category.id),
+                    label: category.name,
+                  }))}
+                />
               </div>
 
               <div className="space-y-2">
@@ -463,7 +482,7 @@ export default function ProductsPage() {
         <>
           <div className="flex items-center justify-between gap-3">
             <Input
-              placeholder="Filter products..."
+              placeholder="Rechercher un produit..."
               value={searchQuery}
               onChange={(e) => handleSearch(e.target.value)}
               className="flex-1 border rounded-lg px-4 py-2 text-sm"
@@ -472,14 +491,19 @@ export default function ProductsPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 transition-colors"
                 onClick={() => setColumnsOpen(!columnsOpen)}
               >
-                Columns
-                <ChevronDown className="size-4" />
+                Colonnes
+                <ChevronDown className={`size-4 transition-transform duration-200 ${columnsOpen ? "rotate-180" : "rotate-0"}`} />
               </Button>
-              {columnsOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10">
+              <div
+                className={`columns-panel w-48 ${
+                  columnsOpen
+                    ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
+                    : "pointer-events-none -translate-y-1 scale-95 opacity-0"
+                }`}
+              >
                   <div className="p-2 space-y-2">
                     {[
                       { key: "id", label: "ID" },
@@ -504,7 +528,6 @@ export default function ProductsPage() {
                     ))}
                   </div>
                 </div>
-              )}
             </div>
           </div>
 
@@ -537,8 +560,21 @@ export default function ProductsPage() {
                         {visibleColumns.id && <TableCell>{product.id}</TableCell>}
                         {visibleColumns.name && <TableCell>{product.name}</TableCell>}
                         {visibleColumns.categorie && <TableCell>{product.categorie?.name ?? "-"}</TableCell>}
-                        {visibleColumns.price && <TableCell>{product.price ? `$${product.price.toFixed(2)}` : "-"}</TableCell>}
-                        {visibleColumns.stock && <TableCell>{product.stock ?? "-"}</TableCell>}
+                        {visibleColumns.price && <TableCell>{product.price ? `${product.price.toFixed(2)} Dt` : "-"}</TableCell>}
+                        {visibleColumns.stock && (
+                          <TableCell>
+                            {product.stock !== null ? (
+                              <Badge
+                                variant="outline"
+                                className={getStockBadgeClassName(product.stock)}
+                              >
+                                {product.stock}
+                              </Badge>
+                            ) : (
+                              "-"
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button
@@ -568,7 +604,7 @@ export default function ProductsPage() {
 
               <div className="flex items-center justify-between pt-4">
                 <span className="text-sm text-muted-foreground">
-                  {filteredProducts.length} item(s)
+                  {filteredProducts.length} element(s)
                 </span>
                 <div className="flex gap-2">
                   <Button
@@ -577,7 +613,7 @@ export default function ProductsPage() {
                     onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
                   >
-                    Previous
+                    Precedent
                   </Button>
                   <Button
                     variant="outline"
@@ -585,7 +621,7 @@ export default function ProductsPage() {
                     onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                     disabled={currentPage === totalPages}
                   >
-                    Next
+                    Suivant
                   </Button>
                 </div>
               </div>
@@ -593,25 +629,25 @@ export default function ProductsPage() {
               {/* Delete Confirmation Dialog */}
               {deletingProductId && (
                 <AlertDialog open={true}>
-                  <AlertDialogContent size="sm">
+                  <AlertDialogContent size="sm" className="app-alert-content">
                     <AlertDialogHeader>
                       <div className="mb-2 inline-flex size-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                         <MoreHorizontal className="size-5" />
                       </div>
-                      <AlertDialogTitle>Delete Product?</AlertDialogTitle>
+                      <AlertDialogTitle>Supprimer le produit ?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure? This action cannot be undone.
+                        Cette action est irreversible.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel onClick={() => setDeletingProductId(null)}>
-                        Cancel
+                        Annuler
                       </AlertDialogCancel>
                       <AlertDialogAction
                         variant="destructive"
                         onClick={() => handleDeleteProduct(deletingProductId)}
                       >
-                        Delete
+                        Supprimer
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -623,7 +659,7 @@ export default function ProductsPage() {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="app-dialog-content">
           <DialogHeader>
             <DialogTitle>Modifier le produit</DialogTitle>
             <DialogDescription>
@@ -669,20 +705,15 @@ export default function ProductsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="product-edit-category">Categorie</Label>
-              <select
-                id="product-edit-category"
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              <CustomSelect
                 value={editCategoryId}
-                onChange={(event) => setEditCategoryId(event.target.value)}
-                required
-              >
-                <option value="">Choisir une categorie</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setEditCategoryId}
+                placeholder="Choisir une categorie"
+                options={categories.map((category) => ({
+                  value: String(category.id),
+                  label: category.name,
+                }))}
+              />
             </div>
 
             <div className="space-y-2">
