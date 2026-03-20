@@ -37,7 +37,7 @@ import { cn } from "@/lib/utils"
 
 type Vente = Pick<
   Database["public"]["Tables"]["vente"]["Row"],
-  "id" | "product_id" | "client_id" | "quantity" | "total" | "credit" | "date_credit" | "date"
+  "id" | "product_id" | "client_id" | "quantity" | "price" | "total" | "credit" | "date_credit" | "date"
 >
 
 type ProductOption = Pick<
@@ -62,6 +62,16 @@ function toIsoDateValue(dateValue: string) {
 }
 
 function parseCreditInput(value: string) {
+  const normalized = value.trim().replace(",", ".")
+  if (!normalized) {
+    return null
+  }
+
+  const parsed = Number(normalized)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+function parseMoneyInput(value: string) {
   const normalized = value.trim().replace(",", ".")
   if (!normalized) {
     return null
@@ -148,6 +158,7 @@ export default function VentesPage() {
   const [newProductId, setNewProductId] = useState("")
   const [newClientId, setNewClientId] = useState("")
   const [newQuantity, setNewQuantity] = useState("1")
+  const [newSalePrice, setNewSalePrice] = useState("")
   const [newCredit, setNewCredit] = useState("")
   const [newDate, setNewDate] = useState(toDateInputValue(new Date()))
   const [newDateCredit, setNewDateCredit] = useState("")
@@ -167,6 +178,7 @@ export default function VentesPage() {
     product: true,
     client: true,
     quantity: true,
+    price: true,
     total: true,
     credit: true,
     date: true,
@@ -193,7 +205,7 @@ export default function VentesPage() {
   const fetchVentes = useCallback(async () => {
     const { data, error: queryError } = await supabase
       .from("vente")
-      .select("id, product_id, client_id, quantity, total, credit, date_credit, date")
+      .select("id, product_id, client_id, quantity, price, total, credit, date_credit, date")
       .order("id", { ascending: true })
 
     if (queryError) {
@@ -331,6 +343,20 @@ export default function VentesPage() {
     return () => window.clearTimeout(timer)
   }, [isDialogOpen, clientSearch, fetchClientOptions])
 
+  const handleProductChange = (value: string) => {
+    setNewProductId(value)
+
+    const selectedProductId = Number(value)
+    const productCost = productOptions.find((item) => item.id === selectedProductId)?.price
+      ?? productsById.get(selectedProductId)?.price
+
+    if (productCost !== null && productCost !== undefined) {
+      setNewSalePrice(String(productCost))
+    } else {
+      setNewSalePrice("")
+    }
+  }
+
   async function handleAddVente(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -356,6 +382,12 @@ export default function VentesPage() {
       return
     }
 
+    const parsedSalePrice = parseMoneyInput(newSalePrice)
+    if (parsedSalePrice === null || parsedSalePrice < 0) {
+      toast.error("Le prix de vente doit etre un nombre valide superieur ou egal a 0")
+      return
+    }
+
     const productId = Number(newProductId)
     const clientId = Number(newClientId)
 
@@ -376,7 +408,7 @@ export default function VentesPage() {
       return
     }
 
-    const saleTotal = (currentProduct.price ?? 0) * parsedQuantity
+    const saleTotal = parsedSalePrice * parsedQuantity
 
     const effectiveDateCredit = parsedCredit !== null && parsedCredit > 0
       ? (newDateCredit || newDate)
@@ -389,6 +421,7 @@ export default function VentesPage() {
         product_id: productId,
         client_id: clientId,
         quantity: parsedQuantity,
+        price: parsedSalePrice,
         total: saleTotal,
         credit: parsedCredit,
         date: newDate ? toIsoDateValue(newDate) : null,
@@ -422,6 +455,7 @@ export default function VentesPage() {
     setNewProductId("")
     setNewClientId("")
     setNewQuantity("1")
+    setNewSalePrice("")
     setNewCredit("")
     setNewDate(toDateInputValue(new Date()))
     setNewDateCredit("")
@@ -560,7 +594,7 @@ export default function VentesPage() {
                   <CustomSelect
                     id="sale-product"
                     value={newProductId}
-                    onChange={setNewProductId}
+                    onChange={handleProductChange}
                     placeholder="Choisir un produit"
                     searchable
                     searchValue={productSearch}
@@ -622,6 +656,24 @@ export default function VentesPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="sale-price">Prix vente</Label>
+                  <Input
+                    id="sale-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newSalePrice}
+                    onChange={(event) => setNewSalePrice(event.target.value)}
+                    placeholder="0.00"
+                    inputMode="decimal"
+                    className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-2">
                   <Label htmlFor="sale-credit">Credit</Label>
                   <Input
                     id="sale-credit"
@@ -665,7 +717,12 @@ export default function VentesPage() {
 
               {newProductId && (
                 <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-                  Stock disponible: <strong>{productOptions.find((item) => item.id === Number(newProductId))?.stock ?? productsById.get(Number(newProductId))?.stock ?? 0}</strong>
+                  <div>
+                    Stock disponible: <strong>{productOptions.find((item) => item.id === Number(newProductId))?.stock ?? productsById.get(Number(newProductId))?.stock ?? 0}</strong>
+                  </div>
+                  <div>
+                    Cout unitaire: <strong>{(productOptions.find((item) => item.id === Number(newProductId))?.price ?? productsById.get(Number(newProductId))?.price ?? 0).toFixed(2)} Dt</strong>
+                  </div>
                 </div>
               )}
 
@@ -770,6 +827,7 @@ export default function VentesPage() {
                       {visibleColumns.product && <TableHead>Produit</TableHead>}
                       {visibleColumns.client && <TableHead>Client</TableHead>}
                       {visibleColumns.quantity && <TableHead>Quantite</TableHead>}
+                      {visibleColumns.price && <TableHead>Prix vente</TableHead>}
                       {visibleColumns.total && <TableHead>Total</TableHead>}
                       {visibleColumns.credit && <TableHead>Credit</TableHead>}
                       {visibleColumns.date && <TableHead>Date</TableHead>}
@@ -798,6 +856,9 @@ export default function VentesPage() {
                           <TableCell>
                             <Badge variant="outline">{sale.quantity}</Badge>
                           </TableCell>
+                        )}
+                        {visibleColumns.price && (
+                          <TableCell>{sale.price !== null ? `${sale.price.toFixed(2)} Dt` : "-"}</TableCell>
                         )}
                         {visibleColumns.total && (
                           <TableCell>{sale.total !== null ? `${sale.total.toFixed(2)} Dt` : "-"}</TableCell>

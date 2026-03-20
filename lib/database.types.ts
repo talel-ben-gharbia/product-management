@@ -85,6 +85,7 @@ export type Database = {
           product_id: number
           client_id: number
           quantity: number
+          price: number | null
           total: number | null
           credit: number | null
           date_credit: string | null
@@ -95,6 +96,7 @@ export type Database = {
           product_id: number
           client_id: number
           quantity: number
+          price?: number | null
           total?: number | null
           credit?: number | null
           date_credit?: string | null
@@ -105,6 +107,7 @@ export type Database = {
           product_id?: number
           client_id?: number
           quantity?: number
+          price?: number | null
           total?: number | null
           credit?: number | null
           date_credit?: string | null

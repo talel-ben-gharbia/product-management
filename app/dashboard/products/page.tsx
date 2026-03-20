@@ -190,7 +190,7 @@ export default function ProductsPage() {
     const parsedStock = parseOptionalNumber(newStock)
 
     if (parsedPrice !== null && parsedPrice < 0) {
-      toast.error("Le prix doit etre superieur ou egal a 0")
+      toast.error("Le cout doit etre superieur ou egal a 0")
       return
     }
 
@@ -254,7 +254,7 @@ export default function ProductsPage() {
     const parsedStock = parseOptionalNumber(editStock)
 
     if (parsedPrice !== null && parsedPrice < 0) {
-      toast.error("Le prix doit etre superieur ou egal a 0")
+      toast.error("Le cout doit etre superieur ou egal a 0")
       return
     }
 
@@ -398,7 +398,7 @@ export default function ProductsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="product-price">Prix</Label>
+                  <Label htmlFor="product-price">Cout unitaire</Label>
                   <Input
                     id="product-price"
                     type="number"
@@ -509,7 +509,7 @@ export default function ProductsPage() {
                       { key: "id", label: "ID" },
                       { key: "name", label: "Nom" },
                       { key: "categorie", label: "Categorie" },
-                      { key: "price", label: "Prix" },
+                      { key: "price", label: "Cout" },
                       { key: "stock", label: "Stock" },
                     ].map((col) => (
                       <label key={col.key} className="flex items-center gap-2 cursor-pointer p-2 hover:bg-muted rounded">
@@ -549,7 +549,7 @@ export default function ProductsPage() {
                       {visibleColumns.id && <TableHead>ID</TableHead>}
                       {visibleColumns.name && <TableHead>Nom</TableHead>}
                       {visibleColumns.categorie && <TableHead>Categorie</TableHead>}
-                      {visibleColumns.price && <TableHead>Prix</TableHead>}
+                      {visibleColumns.price && <TableHead>Cout</TableHead>}
                       {visibleColumns.stock && <TableHead>Stock</TableHead>}
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -680,7 +680,7 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="product-edit-price">Prix</Label>
+                <Label htmlFor="product-edit-price">Cout unitaire</Label>
                 <Input
                   id="product-edit-price"
                   type="number"
