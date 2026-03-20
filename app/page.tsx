@@ -69,7 +69,7 @@ export default function Page() {
         <div className="mb-6 space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Connexion</h1>
           <p className="text-sm text-muted-foreground">
-            Connectez-vous avec votre email et votre mot de passe Supabase.
+            Aya saha saha aam mondher
           </p>
         </div>
 
