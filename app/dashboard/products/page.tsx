@@ -35,7 +35,7 @@ import { toast } from "sonner"
 
 type Product = Pick<
   Database["public"]["Tables"]["produit"]["Row"],
-  "id" | "name" | "price" | "description" | "stock" | "categorie_id" | "user_id"
+  "id" | "name" | "price" | "description" | "stock" | "categorie_id"
 > & {
   categorie: { name: string } | null
 }
@@ -128,7 +128,6 @@ export default function ProductsPage() {
     const { data, error: queryError } = await supabase
       .from("produit")
       .select("id, name, price, description, stock, categorie:categorie!produit_categorie_id_fkey(name)")
-      .eq("user_id", userId)
       .order("id", { ascending: true })
 
     if (queryError) {
@@ -154,7 +153,6 @@ export default function ProductsPage() {
     const { data, error: queryError } = await supabase
       .from("categorie")
       .select("id, name")
-      .eq("user_id", userId)
       .order("name", { ascending: true })
 
     if (queryError) {
@@ -217,7 +215,6 @@ export default function ProductsPage() {
       stock: parsedStock,
       description: newDescription.trim() || null,
       categorie_id: Number(newCategoryId),
-      user_id: userId,
     })
     setIsSubmitting(false)
 
@@ -289,7 +286,6 @@ export default function ProductsPage() {
         categorie_id: Number(editCategoryId),
       })
       .eq("id", editingProduct.id)
-      .eq("user_id", userId)
     setIsUpdating(false)
 
     if (updateError) {
@@ -316,7 +312,6 @@ export default function ProductsPage() {
       .from("produit")
       .delete()
       .eq("id", productId)
-      .eq("user_id", userId)
     setDeletingProductId(null)
 
     if (deleteError) {

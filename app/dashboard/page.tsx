@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase"
 import { Banknote, Loader2, ShoppingBag, TrendingUp, Wallet } from "lucide-react"
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 
-type Product = Pick<Database["public"]["Tables"]["produit"]["Row"], "id" | "name" | "price" | "user_id">
+type Product = Pick<Database["public"]["Tables"]["produit"]["Row"], "id" | "name" | "price">
 type Client = Pick<Database["public"]["Tables"]["client"]["Row"], "id" | "full_name">
 type Sale = Pick<Database["public"]["Tables"]["vente"]["Row"], "id" | "product_id" | "client_id" | "quantity" | "price" | "total" | "credit" | "date">
 
@@ -91,8 +91,7 @@ export default function DashboardPage() {
 
       const { data: productsData, error: productsError } = await supabase
         .from("produit")
-        .select("id, name, price, user_id")
-        .eq("user_id", user.id)
+        .select("id, name, price")
 
       if (productsError) {
         if (isMounted) {

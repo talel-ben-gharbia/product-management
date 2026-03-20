@@ -5,17 +5,14 @@ export type Database = {
         Row: {
           id: number
           name: string
-          user_id: string
         }
         Insert: {
           id?: number
           name: string
-          user_id: string
         }
         Update: {
           id?: number
           name?: string
-          user_id?: string
         }
         Relationships: []
       }
@@ -55,7 +52,6 @@ export type Database = {
           stock: number | null
           created_at: string | null
           categorie_id: number | null
-          user_id: string
         }
         Insert: {
           id?: number
@@ -65,7 +61,6 @@ export type Database = {
           stock?: number | null
           created_at?: string | null
           categorie_id?: number | null
-          user_id: string
         }
         Update: {
           id?: number
@@ -75,7 +70,6 @@ export type Database = {
           stock?: number | null
           created_at?: string | null
           categorie_id?: number | null
-          user_id?: string
         }
         Relationships: []
       }

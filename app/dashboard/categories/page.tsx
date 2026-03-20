@@ -32,7 +32,7 @@ import { toast } from "sonner"
 
 type Category = Pick<
   Database["public"]["Tables"]["categorie"]["Row"],
-  "id" | "name" | "user_id"
+  "id" | "name"
 >
 
 const ITEMS_PER_PAGE = 10
@@ -82,8 +82,7 @@ export default function CategoriesPage() {
 
     const { data, error: queryError } = await supabase
       .from("categorie")
-      .select("id, name, user_id")
-      .eq("user_id", userId)
+      .select("id, name")
       .order("id", { ascending: true })
 
     if (queryError) {
@@ -135,7 +134,7 @@ export default function CategoriesPage() {
 
     const { error: insertError } = await supabase
       .from("categorie")
-      .insert({ name: trimmedName, user_id: userId })
+      .insert({ name: trimmedName })
     setIsSubmitting(false)
 
     if (insertError) {
@@ -176,7 +175,6 @@ export default function CategoriesPage() {
       .from("categorie")
       .update({ name: trimmedName })
       .eq("id", editingCategory.id)
-      .eq("user_id", userId)
     setIsUpdating(false)
 
     if (updateError) {
@@ -203,7 +201,6 @@ export default function CategoriesPage() {
       .from("categorie")
       .delete()
       .eq("id", categoryId)
-      .eq("user_id", userId)
     setDeletingCategoryId(null)
 
     if (deleteError) {
