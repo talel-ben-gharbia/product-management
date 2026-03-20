@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js"
@@ -41,16 +41,28 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const loginLinkRef = useRef<HTMLAnchorElement | null>(null)
 
   useEffect(() => {
     let isMounted = true
 
     async function verifySession() {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      let sessionFound: Session | null = null
 
-      if (!session && isMounted) {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (session) {
+          sessionFound = session
+          break
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 120))
+      }
+
+      if (!sessionFound && isMounted) {
         router.replace("/")
         return
       }
@@ -87,8 +99,13 @@ export default function DashboardLayout({
     }
 
     toast.success("Deconnexion reussie")
-    router.replace("/")
-    router.refresh()
+
+    // Link-based fallback if auth listener redirect is delayed.
+    window.setTimeout(() => {
+      if (window.location.pathname !== "/") {
+        loginLinkRef.current?.click()
+      }
+    }, 120)
   }
 
   if (isChecking) {
@@ -150,6 +167,9 @@ export default function DashboardLayout({
         <SidebarSeparator />
 
         <SidebarFooter className="p-3">
+          <Link ref={loginLinkRef} href="/" className="hidden" prefetch>
+            Login
+          </Link>
           <Button
             variant="outline"
             className="w-full justify-start"

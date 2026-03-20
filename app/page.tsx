@@ -1,6 +1,8 @@
 "use client"
 
 import { FormEvent, useEffect, useState } from "react"
+import { useRef } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +15,7 @@ export default function Page() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const dashboardLinkRef = useRef<HTMLAnchorElement | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -47,7 +50,7 @@ export default function Page() {
     event.preventDefault()
 
     setIsLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -59,14 +62,28 @@ export default function Page() {
     }
 
     toast.success("Connexion reussie")
-    router.replace("/dashboard")
-    router.refresh()
+
+    // Fallback redirect: some browsers delay auth listener propagation.
+    if (data.session) {
+      router.replace("/dashboard")
+      router.refresh()
+
+      // Hard fallback for environments where App Router navigation is delayed.
+      window.setTimeout(() => {
+        if (window.location.pathname !== "/dashboard") {
+          window.location.assign("/dashboard")
+        }
+      }, 120)
+    }
   }
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
       <section className="w-full max-w-md rounded-xl border bg-card p-6 shadow-sm">
         <div className="mb-6 space-y-1">
+          <Link ref={dashboardLinkRef} href="/dashboard" className="hidden" prefetch>
+            Dashboard
+          </Link>
           <h1 className="text-2xl font-semibold tracking-tight">Connexion</h1>
           <p className="text-sm text-muted-foreground">
             Aya saha saha aam mondher
