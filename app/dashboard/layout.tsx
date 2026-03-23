@@ -19,9 +19,20 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { supabase } from "@/lib/supabase"
-import { Grid2x2, LayoutDashboard, LogOut, Package, Store, UserRound, ShoppingCart } from "lucide-react"
+import { Grid2x2, LayoutDashboard, LogOut, Package, Store, Trash2, UserRound, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
 
 const NAV_ITEMS = [
@@ -41,6 +52,7 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const [isChecking, setIsChecking] = useState(true)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [isClearingData, setIsClearingData] = useState(false)
   const loginLinkRef = useRef<HTMLAnchorElement | null>(null)
 
   useEffect(() => {
@@ -108,6 +120,42 @@ export default function DashboardLayout({
     }, 120)
   }
 
+  async function handleClearAllData() {
+    setIsClearingData(true)
+
+    const { error: salesError } = await supabase.from("vente").delete().not("id", "is", null)
+    if (salesError) {
+      setIsClearingData(false)
+      toast.error(salesError.message || "Erreur lors de la suppression des ventes")
+      return
+    }
+
+    const { error: productsError } = await supabase.from("produit").delete().not("id", "is", null)
+    if (productsError) {
+      setIsClearingData(false)
+      toast.error(productsError.message || "Erreur lors de la suppression des produits")
+      return
+    }
+
+    const { error: categoriesError } = await supabase.from("categorie").delete().not("id", "is", null)
+    if (categoriesError) {
+      setIsClearingData(false)
+      toast.error(categoriesError.message || "Erreur lors de la suppression des categories")
+      return
+    }
+
+    const { error: clientsError } = await supabase.from("client").delete().not("id", "is", null)
+    setIsClearingData(false)
+
+    if (clientsError) {
+      toast.error(clientsError.message || "Erreur lors de la suppression des clients")
+      return
+    }
+
+    toast.success("Toutes les donnees ont ete supprimees")
+    router.refresh()
+  }
+
   if (isChecking) {
     return (
       <main className="flex min-h-svh items-center justify-center text-sm text-muted-foreground">
@@ -138,7 +186,7 @@ export default function DashboardLayout({
             <SidebarGroupLabel className="uppercase tracking-wide text-[11px] text-muted-foreground">
               Navigation
             </SidebarGroupLabel>
-            <SidebarMenu className="gap-1.5">
+            <SidebarMenu className="gap-2">
               {NAV_ITEMS.map((item) => {
                 const isActive = pathname === item.href
                 const Icon = item.icon
@@ -148,11 +196,11 @@ export default function DashboardLayout({
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-10 rounded-xl px-2.5 text-[13px] font-medium text-sidebar-foreground/80 transition-all hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm data-[active=true]:ring-1 data-[active=true]:ring-sidebar-border/70"
+                      className="h-14 rounded-xl px-4 text-base font-medium text-sidebar-foreground/80 transition-all hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm data-[active=true]:ring-1 data-[active=true]:ring-sidebar-border/70 lg:h-12 lg:px-3 lg:text-[15px]"
                     >
                       <Link href={item.href}>
-                        <span className="flex size-7 items-center justify-center rounded-lg bg-sidebar-accent/50">
-                          <Icon className="size-4" />
+                        <span className="flex size-10 items-center justify-center rounded-lg bg-sidebar-accent/50 lg:size-9">
+                          <Icon className="size-5 lg:size-5" />
                         </span>
                         <span>{item.label}</span>
                       </Link>
@@ -179,6 +227,33 @@ export default function DashboardLayout({
             <LogOut className="size-4" />
             {isSigningOut ? "Deconnexion..." : "Se deconnecter"}
           </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="mt-2 w-full justify-start" disabled={isClearingData}>
+                <Trash2 className="size-4" />
+                {isClearingData ? "Suppression..." : "Supprimer tous"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer toutes les donnees ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irreversible. Toutes les ventes, produits, categories et clients seront
+                  supprimes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={handleClearAllData}
+                  disabled={isClearingData}
+                >
+                  Confirmer la suppression
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </SidebarFooter>
       </Sidebar>
 
