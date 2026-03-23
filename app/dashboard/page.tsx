@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -567,7 +568,14 @@ export default function DashboardPage() {
                       <tbody>
                         {unpaidSales.map((sale) => (
                           <tr key={sale.id} className="border-t">
-                            <td className="px-2 py-1.5">{clientNameById.get(sale.client_id) ?? `Client #${sale.client_id}`}</td>
+                            <td className="px-2 py-1.5">
+                              <Link
+                                href={`/dashboard/ventes?saleId=${sale.id}`}
+                                className="text-primary underline-offset-4 hover:underline"
+                              >
+                                {clientNameById.get(sale.client_id) ?? `Client #${sale.client_id}`}
+                              </Link>
+                            </td>
                             <td className="px-2 py-1.5">{productNameById.get(sale.product_id) ?? `Produit #${sale.product_id}`}</td>
                             <td className="px-2 py-1.5">{sale.date ? new Date(sale.date).toLocaleDateString() : "-"}</td>
                             <td className="px-2 py-1.5">{money(sale.total ?? ((sale.price ?? 0) * sale.quantity))}</td>

@@ -1,7 +1,8 @@
 "use client"
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -146,6 +147,7 @@ function DateField({ id, label, value, onChange, placeholder }: DateFieldProps) 
 }
 
 export default function VentesPage() {
+  const searchParams = useSearchParams()
   const [ventes, setVentes] = useState<Vente[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
   const [clients, setClients] = useState<ClientOption[]>([])
@@ -187,6 +189,21 @@ export default function VentesPage() {
 
   const [deletingSaleId, setDeletingSaleId] = useState<number | null>(null)
   const [payingCreditSaleId, setPayingCreditSaleId] = useState<number | null>(null)
+  const focusedSaleAppliedRef = useRef<number | null>(null)
+
+  const focusedSaleId = useMemo(() => {
+    const raw = searchParams.get("saleId")
+    if (!raw) {
+      return null
+    }
+
+    const parsed = Number(raw)
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return null
+    }
+
+    return parsed
+  }, [searchParams])
 
   const numericCredit = parseCreditInput(newCredit)
   const showDateCreditField = numericCredit !== null && numericCredit > 0
@@ -342,6 +359,32 @@ export default function VentesPage() {
 
     return () => window.clearTimeout(timer)
   }, [isDialogOpen, clientSearch, fetchClientOptions])
+
+  useEffect(() => {
+    if (!focusedSaleId || ventes.length === 0) {
+      return
+    }
+
+    if (focusedSaleAppliedRef.current === focusedSaleId) {
+      return
+    }
+
+    const saleIndex = ventes.findIndex((sale) => sale.id === focusedSaleId)
+    if (saleIndex < 0) {
+      return
+    }
+
+    const page = Math.floor(saleIndex / ITEMS_PER_PAGE) + 1
+    focusedSaleAppliedRef.current = focusedSaleId
+
+    window.setTimeout(() => {
+      setCurrentPage(page)
+      document.getElementById(`sale-row-${focusedSaleId}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      })
+    }, 80)
+  }, [focusedSaleId, ventes])
 
   const handleProductChange = (value: string) => {
     setNewProductId(value)
@@ -837,7 +880,14 @@ export default function VentesPage() {
                   </TableHeader>
                   <TableBody>
                     {paginatedVentes.map((sale) => (
-                      <TableRow key={sale.id} className="hover:bg-muted/30">
+                      <TableRow
+                        key={sale.id}
+                        id={`sale-row-${sale.id}`}
+                        className={cn(
+                          "hover:bg-muted/30",
+                          focusedSaleId === sale.id && "bg-amber-100/60 ring-1 ring-amber-300"
+                        )}
+                      >
                         {visibleColumns.id && <TableCell>{sale.id}</TableCell>}
                         {visibleColumns.product && (
                           <TableCell>{productsById.get(sale.product_id)?.name ?? `#${sale.product_id}`}</TableCell>
