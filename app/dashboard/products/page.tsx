@@ -35,7 +35,7 @@ import { toast } from "sonner"
 
 type Product = Pick<
   Database["public"]["Tables"]["produit"]["Row"],
-  "id" | "name" | "price" | "description" | "stock" | "categorie_id"
+  "id" | "name" | "price" | "description" | "stock" | "retour" | "categorie_id"
 > & {
   categorie: { name: string } | null
 }
@@ -67,6 +67,7 @@ export default function ProductsPage() {
   const [editDescription, setEditDescription] = useState("")
   const [editCategoryId, setEditCategoryId] = useState("")
   const [isUpdating, setIsUpdating] = useState(false)
+  const [updatingRetourId, setUpdatingRetourId] = useState<number | null>(null)
   const [deletingProductId, setDeletingProductId] = useState<number | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
@@ -76,6 +77,7 @@ export default function ProductsPage() {
     categorie: true,
     price: true,
     stock: true,
+    retour: true,
   })
   const [columnsOpen, setColumnsOpen] = useState(false)
 
@@ -127,7 +129,7 @@ export default function ProductsPage() {
 
     const { data, error: queryError } = await supabase
       .from("produit")
-      .select("id, name, price, description, stock, categorie:categorie!produit_categorie_id_fkey(name)")
+      .select("id, name, price, description, stock, retour, categorie:categorie!produit_categorie_id_fkey(name)")
       .order("id", { ascending: true })
 
     if (queryError) {
@@ -213,6 +215,7 @@ export default function ProductsPage() {
       name: newName.trim(),
       price: parsedPrice,
       stock: parsedStock,
+      retour: 0,
       description: newDescription.trim() || null,
       categorie_id: Number(newCategoryId),
     })
@@ -322,6 +325,44 @@ export default function ProductsPage() {
     toast.success("Produit supprime")
     setIsLoading(true)
     await fetchProducts()
+  }
+
+  async function handleAdjustRetour(product: Product, delta: number) {
+    const currentRetour = product.retour ?? 0
+    const nextRetour = Math.max(0, currentRetour + delta)
+
+    if (nextRetour === currentRetour) {
+      return
+    }
+
+    const userId = await getCurrentUserId()
+    if (!userId) {
+      toast.error("Session invalide. Reconnectez-vous.")
+      return
+    }
+
+    setUpdatingRetourId(product.id)
+    const { error: updateError } = await supabase
+      .from("produit")
+      .update({ retour: nextRetour })
+      .eq("id", product.id)
+    setUpdatingRetourId(null)
+
+    if (updateError) {
+      toast.error(updateError.message)
+      return
+    }
+
+    setProducts((prev) =>
+      prev.map((item) =>
+        item.id === product.id
+          ? {
+              ...item,
+              retour: nextRetour,
+            }
+          : item
+      )
+    )
   }
 
   // Filter and paginate products
@@ -546,6 +587,7 @@ export default function ProductsPage() {
                       {visibleColumns.categorie && <TableHead>Categorie</TableHead>}
                       {visibleColumns.price && <TableHead>Cout</TableHead>}
                       {visibleColumns.stock && <TableHead>Stock</TableHead>}
+                      <TableHead>Retour</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -570,6 +612,31 @@ export default function ProductsPage() {
                             )}
                           </TableCell>
                         )}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              className="h-7 w-7"
+                              onClick={() => handleAdjustRetour(product, -1)}
+                              disabled={updatingRetourId === product.id || (product.retour ?? 0) <= 0}
+                            >
+                              -
+                            </Button>
+                            <Badge variant="outline">{product.retour ?? 0}</Badge>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              className="h-7 w-7"
+                              onClick={() => handleAdjustRetour(product, 1)}
+                              disabled={updatingRetourId === product.id}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                             <Button

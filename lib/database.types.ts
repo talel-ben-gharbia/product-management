@@ -50,6 +50,7 @@ export type Database = {
           price: number | null
           description: string | null
           stock: number | null
+          retour: number | null
           created_at: string | null
           categorie_id: number | null
         }
@@ -59,6 +60,7 @@ export type Database = {
           price?: number | null
           description?: string | null
           stock?: number | null
+          retour?: number | null
           created_at?: string | null
           categorie_id?: number | null
         }
@@ -68,6 +70,7 @@ export type Database = {
           price?: number | null
           description?: string | null
           stock?: number | null
+          retour?: number | null
           created_at?: string | null
           categorie_id?: number | null
         }
