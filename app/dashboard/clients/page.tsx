@@ -228,14 +228,14 @@ export default function ClientsPage() {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-3 shadow-sm sm:p-4 md:p-5">
+    <section className="app-page app-page-clients space-y-4 rounded-xl p-3 sm:p-4 md:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-muted p-2">
+          <div className="app-page-icon app-page-icon-clients">
             <UserRound className="size-4" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Clients</h2>
+            <h2 className="app-page-title-clients text-xl font-semibold">Clients</h2>
           </div>
         </div>
 
@@ -246,7 +246,7 @@ export default function ClientsPage() {
               Ajouter client
             </Button>
           </DialogTrigger>
-          <DialogContent className="app-dialog-content">
+          <DialogContent className="app-dialog-content app-dialog-clients">
             <DialogHeader>
               <DialogTitle>Nouveau client</DialogTitle>
               <DialogDescription>
@@ -390,10 +390,10 @@ export default function ClientsPage() {
             </Empty>
           ) : (
             <>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="app-table-wrap">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="app-table-head-row app-table-head-row-clients">
                       {visibleColumns.id && <TableHead>ID</TableHead>}
                       {visibleColumns.full_name && <TableHead>Nom</TableHead>}
                       {visibleColumns.state && <TableHead>Etat</TableHead>}
@@ -405,7 +405,7 @@ export default function ClientsPage() {
                   </TableHeader>
                   <TableBody>
                     {paginatedClients.map((client) => (
-                      <TableRow key={client.id} className="hover:bg-muted/30">
+                      <TableRow key={client.id} className="app-table-row app-table-row-clients">
                         {visibleColumns.id && <TableCell>{client.id}</TableCell>}
                         {visibleColumns.full_name && <TableCell>{client.full_name}</TableCell>}
                         {visibleColumns.state && (
@@ -480,7 +480,7 @@ export default function ClientsPage() {
 
               {deletingClientId && (
                 <AlertDialog open={true}>
-                  <AlertDialogContent size="sm" className="app-alert-content">
+                  <AlertDialogContent size="sm" className="app-alert-content app-alert-clients">
                     <AlertDialogHeader>
                       <div className="mb-2 inline-flex size-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                         <MoreHorizontal className="size-5" />
@@ -506,7 +506,7 @@ export default function ClientsPage() {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="app-dialog-content">
+        <DialogContent className="app-dialog-content app-dialog-clients">
           <DialogHeader>
             <DialogTitle>Modifier le client</DialogTitle>
             <DialogDescription>Mettez a jour les informations du client.</DialogDescription>

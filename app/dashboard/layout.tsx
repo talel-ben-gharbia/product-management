@@ -31,6 +31,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { Grid2x2, LayoutDashboard, LogOut, Package, Store, Trash2, UserRound, ShoppingCart } from "lucide-react"
 import { toast } from "sonner"
@@ -42,6 +43,38 @@ const NAV_ITEMS = [
   { href: "/dashboard/clients", label: "Clients", icon: UserRound },
   { href: "/dashboard/ventes", label: "Ventes", icon: ShoppingCart },
 ]
+
+function getSidebarItemToneClass(href: string) {
+  if (href === "/dashboard/products") {
+    return "sidebar-item-tone sidebar-item-products"
+  }
+
+  if (href === "/dashboard/clients") {
+    return "sidebar-item-tone sidebar-item-clients"
+  }
+
+  if (href === "/dashboard/ventes") {
+    return "sidebar-item-tone sidebar-item-ventes"
+  }
+
+  return ""
+}
+
+function getSidebarIconToneClass(href: string) {
+  if (href === "/dashboard/products") {
+    return "sidebar-icon-tone sidebar-icon-products"
+  }
+
+  if (href === "/dashboard/clients") {
+    return "sidebar-icon-tone sidebar-icon-clients"
+  }
+
+  if (href === "/dashboard/ventes") {
+    return "sidebar-icon-tone sidebar-icon-ventes"
+  }
+
+  return "bg-sidebar-accent/50"
+}
 
 export default function DashboardLayout({
   children,
@@ -196,10 +229,13 @@ export default function DashboardLayout({
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
-                      className="h-14 rounded-xl px-4 text-base font-medium text-sidebar-foreground/80 transition-all hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-foreground data-[active=true]:shadow-sm data-[active=true]:ring-1 data-[active=true]:ring-sidebar-border/70 lg:h-12 lg:px-3 lg:text-[15px]"
+                      className={cn(
+                        "h-12 rounded-xl px-1 text-base font-bold text-sidebar-foreground/80 transition-all hover:text-sidebar-foreground data-[active=true]:shadow-sm lg:h-12 lg:px-3 lg:text-[15px]",
+                        getSidebarItemToneClass(item.href)
+                      )}
                     >
                       <Link href={item.href}>
-                        <span className="flex size-10 items-center justify-center rounded-lg bg-sidebar-accent/50 lg:size-9">
+                        <span className={cn("flex size-10 items-center justify-center rounded-lg lg:size-10", getSidebarIconToneClass(item.href))}>
                           <Icon className="size-5 lg:size-5" />
                         </span>
                         <span>{item.label}</span>

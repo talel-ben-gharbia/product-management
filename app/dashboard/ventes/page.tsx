@@ -32,7 +32,7 @@ import { CustomSelect } from "@/components/ui/custom-select"
 import { Calendar } from "@/components/ui/calendar"
 import type { Database } from "@/lib/database.types"
 import { supabase } from "@/lib/supabase"
-import { Loader2, Plus, ShoppingCart, ChevronDown, MoreHorizontal, Trash2, CalendarDays } from "lucide-react"
+import { Loader2, Plus, ShoppingCart, ChevronDown, MoreHorizontal, Trash2, CalendarDays, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -88,6 +88,26 @@ type DateFieldProps = {
   value: string
   onChange: (value: string) => void
   placeholder: string
+}
+
+type NewSaleLine = {
+  id: number
+  productId: string
+  quantity: string
+  salePrice: string
+  credit: string
+  dateCredit: string
+}
+
+function createNewSaleLine(id: number): NewSaleLine {
+  return {
+    id,
+    productId: "",
+    quantity: "1",
+    salePrice: "",
+    credit: "",
+    dateCredit: "",
+  }
 }
 
 function DateField({ id, label, value, onChange, placeholder }: DateFieldProps) {
@@ -157,13 +177,21 @@ export default function VentesPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [newProductId, setNewProductId] = useState("")
   const [newClientId, setNewClientId] = useState("")
-  const [newQuantity, setNewQuantity] = useState("1")
-  const [newSalePrice, setNewSalePrice] = useState("")
-  const [newCredit, setNewCredit] = useState("")
   const [newDate, setNewDate] = useState(toDateInputValue(new Date()))
-  const [newDateCredit, setNewDateCredit] = useState("")
+  const [newSaleLines, setNewSaleLines] = useState<NewSaleLine[]>([createNewSaleLine(1)])
+  const nextNewSaleLineIdRef = useRef(2)
+
+  const [editingSale, setEditingSale] = useState<Vente | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
+  const [editProductId, setEditProductId] = useState("")
+  const [editClientId, setEditClientId] = useState("")
+  const [editQuantity, setEditQuantity] = useState("1")
+  const [editSalePrice, setEditSalePrice] = useState("")
+  const [editCredit, setEditCredit] = useState("")
+  const [editDate, setEditDate] = useState(toDateInputValue(new Date()))
+  const [editDateCredit, setEditDateCredit] = useState("")
 
   const [productOptions, setProductOptions] = useState<ProductOption[]>([])
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([])
@@ -205,8 +233,8 @@ export default function VentesPage() {
     return parsed
   }, [searchParams])
 
-  const numericCredit = parseCreditInput(newCredit)
-  const showDateCreditField = numericCredit !== null && numericCredit > 0
+  const numericEditCredit = parseCreditInput(editCredit)
+  const showEditDateCreditField = numericEditCredit !== null && numericEditCredit > 0
 
   const hasProducts = products.length > 0
   const hasClients = clients.length > 0
@@ -386,92 +414,166 @@ export default function VentesPage() {
     }, 80)
   }, [focusedSaleId, ventes])
 
-  const handleProductChange = (value: string) => {
-    setNewProductId(value)
-
+  const handleLineProductChange = (lineId: number, value: string) => {
     const selectedProductId = Number(value)
     const productCost = productOptions.find((item) => item.id === selectedProductId)?.price
       ?? productsById.get(selectedProductId)?.price
 
-    if (productCost !== null && productCost !== undefined) {
-      setNewSalePrice(String(productCost))
-    } else {
-      setNewSalePrice("")
-    }
+    setNewSaleLines((prev) => prev.map((line) => {
+      if (line.id !== lineId) {
+        return line
+      }
+
+      return {
+        ...line,
+        productId: value,
+        salePrice: productCost !== null && productCost !== undefined ? String(productCost) : "",
+      }
+    }))
+  }
+
+  const handleLineChange = (lineId: number, field: keyof Omit<NewSaleLine, "id">, value: string) => {
+    setNewSaleLines((prev) => prev.map((line) => (
+      line.id === lineId
+        ? {
+          ...line,
+          [field]: value,
+        }
+        : line
+    )))
+  }
+
+  const handleAddSaleLine = () => {
+    setNewSaleLines((prev) => [...prev, createNewSaleLine(nextNewSaleLineIdRef.current++)])
+  }
+
+  const handleRemoveSaleLine = (lineId: number) => {
+    setNewSaleLines((prev) => {
+      if (prev.length <= 1) {
+        return prev
+      }
+
+      return prev.filter((line) => line.id !== lineId)
+    })
   }
 
   async function handleAddVente(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!newProductId || !newClientId) {
-      toast.error("Selectionnez un produit et un client")
+    if (!newClientId) {
+      toast.error("Selectionnez un client")
       return
     }
 
-    const parsedQuantity = Number(newQuantity)
-    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
-      toast.error("La quantite doit etre un entier superieur a 0")
+    if (newSaleLines.length === 0) {
+      toast.error("Ajoutez au moins un produit")
       return
     }
 
-    const parsedCredit = parseCreditInput(newCredit)
-    if (newCredit.trim() !== "" && parsedCredit === null) {
-      toast.error("Le credit doit etre un nombre valide")
-      return
+    const parsedLines: Array<{
+      productId: number
+      quantity: number
+      salePrice: number
+      credit: number | null
+      effectiveDateCredit: string
+    }> = []
+
+    for (let index = 0; index < newSaleLines.length; index += 1) {
+      const line = newSaleLines[index]
+      const lineNumber = index + 1
+
+      if (!line.productId) {
+        toast.error(`Ligne ${lineNumber}: selectionnez un produit`)
+        return
+      }
+
+      const parsedQuantity = Number(line.quantity)
+      if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
+        toast.error(`Ligne ${lineNumber}: la quantite doit etre un entier superieur a 0`)
+        return
+      }
+
+      const parsedCredit = parseCreditInput(line.credit)
+      if (line.credit.trim() !== "" && parsedCredit === null) {
+        toast.error(`Ligne ${lineNumber}: le credit doit etre un nombre valide`)
+        return
+      }
+
+      if (parsedCredit !== null && parsedCredit < 0) {
+        toast.error(`Ligne ${lineNumber}: le credit doit etre superieur ou egal a 0`)
+        return
+      }
+
+      const parsedSalePrice = parseMoneyInput(line.salePrice)
+      if (parsedSalePrice === null || parsedSalePrice < 0) {
+        toast.error(`Ligne ${lineNumber}: le prix de vente doit etre un nombre valide superieur ou egal a 0`)
+        return
+      }
+
+      const effectiveDateCredit = parsedCredit !== null && parsedCredit > 0
+        ? (line.dateCredit || newDate)
+        : ""
+
+      parsedLines.push({
+        productId: Number(line.productId),
+        quantity: parsedQuantity,
+        salePrice: parsedSalePrice,
+        credit: parsedCredit,
+        effectiveDateCredit,
+      })
     }
 
-    if (parsedCredit !== null && parsedCredit < 0) {
-      toast.error("Le credit doit etre superieur ou egal a 0")
-      return
-    }
-
-    const parsedSalePrice = parseMoneyInput(newSalePrice)
-    if (parsedSalePrice === null || parsedSalePrice < 0) {
-      toast.error("Le prix de vente doit etre un nombre valide superieur ou egal a 0")
-      return
-    }
-
-    const productId = Number(newProductId)
     const clientId = Number(newClientId)
 
-    const { data: currentProduct, error: productError } = await supabase
+    const uniqueProductIds = Array.from(new Set(parsedLines.map((line) => line.productId)))
+    const { data: productRows, error: productError } = await supabase
       .from("produit")
-      .select("id, stock, price")
-      .eq("id", productId)
-      .single()
+      .select("id, stock")
+      .in("id", uniqueProductIds)
 
-    if (productError || !currentProduct) {
+    if (productError) {
       toast.error(productError?.message || "Produit introuvable")
       return
     }
 
-    const availableStock = currentProduct.stock ?? 0
-    if (availableStock < parsedQuantity) {
-      toast.error(`Stock insuffisant. Disponible: ${availableStock}`)
-      return
+    const stockByProductId = new Map((productRows ?? []).map((product) => [product.id, product.stock ?? 0]))
+    const requiredByProductId = new Map<number, number>()
+
+    for (const line of parsedLines) {
+      requiredByProductId.set(
+        line.productId,
+        (requiredByProductId.get(line.productId) ?? 0) + line.quantity
+      )
     }
 
-    const saleTotal = parsedSalePrice * parsedQuantity
+    for (const [productId, neededQuantity] of requiredByProductId.entries()) {
+      const availableStock = stockByProductId.get(productId)
+      if (availableStock === undefined) {
+        toast.error("Un produit selectionne est introuvable")
+        return
+      }
 
-    const effectiveDateCredit = parsedCredit !== null && parsedCredit > 0
-      ? (newDateCredit || newDate)
-      : ""
+      if (availableStock < neededQuantity) {
+        const productName = productsById.get(productId)?.name ?? `#${productId}`
+        toast.error(`Stock insuffisant pour ${productName}. Disponible: ${availableStock}`)
+        return
+      }
+    }
 
     setIsSubmitting(true)
-    const { data: insertedSale, error: insertError } = await supabase
+    const { data: insertedSales, error: insertError } = await supabase
       .from("vente")
-      .insert({
-        product_id: productId,
+      .insert(parsedLines.map((line) => ({
+        product_id: line.productId,
         client_id: clientId,
-        quantity: parsedQuantity,
-        price: parsedSalePrice,
-        total: saleTotal,
-        credit: parsedCredit,
+        quantity: line.quantity,
+        price: line.salePrice,
+        total: line.salePrice * line.quantity,
+        credit: line.credit,
         date: newDate ? toIsoDateValue(newDate) : null,
-        date_credit: effectiveDateCredit ? toIsoDateValue(effectiveDateCredit) : null,
-      })
+        date_credit: line.effectiveDateCredit ? toIsoDateValue(line.effectiveDateCredit) : null,
+      })))
       .select("id")
-      .single()
 
     if (insertError) {
       setIsSubmitting(false)
@@ -479,29 +581,55 @@ export default function VentesPage() {
       return
     }
 
-    const { error: stockUpdateError } = await supabase
-      .from("produit")
-      .update({ stock: availableStock - parsedQuantity })
-      .eq("id", productId)
+    const updatedProducts: number[] = []
+    let hasStockUpdateError = false
 
-    if (stockUpdateError) {
-      if (insertedSale?.id) {
-        await supabase.from("vente").delete().eq("id", insertedSale.id)
+    for (const [productId, neededQuantity] of requiredByProductId.entries()) {
+      const availableStock = stockByProductId.get(productId)
+      if (availableStock === undefined) {
+        hasStockUpdateError = true
+        break
       }
+
+      const { error: stockUpdateError } = await supabase
+        .from("produit")
+        .update({ stock: availableStock - neededQuantity })
+        .eq("id", productId)
+
+      if (stockUpdateError) {
+        hasStockUpdateError = true
+        break
+      }
+
+      updatedProducts.push(productId)
+    }
+
+    if (hasStockUpdateError) {
+      for (const productId of updatedProducts) {
+        const initialStock = stockByProductId.get(productId)
+        if (initialStock !== undefined) {
+          await supabase
+            .from("produit")
+            .update({ stock: initialStock })
+            .eq("id", productId)
+        }
+      }
+
+      const insertedSaleIds = (insertedSales ?? []).map((sale) => sale.id)
+      if (insertedSaleIds.length > 0) {
+        await supabase.from("vente").delete().in("id", insertedSaleIds)
+      }
+
       setIsSubmitting(false)
       toast.error("Erreur lors de la mise a jour du stock")
       return
     }
 
     setIsSubmitting(false)
-    toast.success("Vente ajoutee")
-    setNewProductId("")
+    toast.success(`${parsedLines.length} vente(s) ajoutee(s)`)
     setNewClientId("")
-    setNewQuantity("1")
-    setNewSalePrice("")
-    setNewCredit("")
     setNewDate(toDateInputValue(new Date()))
-    setNewDateCredit("")
+    setNewSaleLines([createNewSaleLine(nextNewSaleLineIdRef.current++)])
     setIsDialogOpen(false)
     setIsLoading(true)
     await Promise.all([fetchVentes(), fetchProducts()])
@@ -546,6 +674,181 @@ export default function VentesPage() {
     await Promise.all([fetchVentes(), fetchProducts()])
   }
 
+  function openEditVenteDialog(sale: Vente) {
+    setEditingSale(sale)
+    setEditProductId(String(sale.product_id))
+    setEditClientId(String(sale.client_id))
+    setEditQuantity(String(sale.quantity))
+    setEditSalePrice(sale.price !== null ? String(sale.price) : "")
+    setEditCredit(sale.credit !== null ? String(sale.credit) : "")
+    setEditDate(sale.date ? toDateInputValue(new Date(sale.date)) : toDateInputValue(new Date()))
+    setEditDateCredit(sale.date_credit ? toDateInputValue(new Date(sale.date_credit)) : "")
+    setIsEditDialogOpen(true)
+  }
+
+  async function handleUpdateVente(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!editingSale) {
+      return
+    }
+
+    if (!editProductId || !editClientId) {
+      toast.error("Selectionnez un produit et un client")
+      return
+    }
+
+    const parsedQuantity = Number(editQuantity)
+    if (!Number.isInteger(parsedQuantity) || parsedQuantity <= 0) {
+      toast.error("La quantite doit etre un entier superieur a 0")
+      return
+    }
+
+    const parsedCredit = parseCreditInput(editCredit)
+    if (editCredit.trim() !== "" && parsedCredit === null) {
+      toast.error("Le credit doit etre un nombre valide")
+      return
+    }
+
+    if (parsedCredit !== null && parsedCredit < 0) {
+      toast.error("Le credit doit etre superieur ou egal a 0")
+      return
+    }
+
+    const parsedSalePrice = parseMoneyInput(editSalePrice)
+    if (parsedSalePrice === null || parsedSalePrice < 0) {
+      toast.error("Le prix de vente doit etre un nombre valide superieur ou egal a 0")
+      return
+    }
+
+    const nextProductId = Number(editProductId)
+    const nextClientId = Number(editClientId)
+    const previousProductId = editingSale.product_id
+    const previousQuantity = editingSale.quantity
+    const saleTotal = parsedSalePrice * parsedQuantity
+    const effectiveDateCredit = parsedCredit !== null && parsedCredit > 0
+      ? (editDateCredit || editDate)
+      : ""
+
+    setIsUpdating(true)
+
+    const { data: stockRows, error: stockError } = await supabase
+      .from("produit")
+      .select("id, stock")
+      .in("id", Array.from(new Set([previousProductId, nextProductId])))
+
+    if (stockError) {
+      setIsUpdating(false)
+      toast.error(stockError.message)
+      return
+    }
+
+    const stockById = new Map((stockRows ?? []).map((item) => [item.id, item.stock ?? 0]))
+    const previousStock = stockById.get(previousProductId)
+    const nextStock = stockById.get(nextProductId)
+
+    if (previousStock === undefined || nextStock === undefined) {
+      setIsUpdating(false)
+      toast.error("Produit introuvable")
+      return
+    }
+
+    if (previousProductId === nextProductId) {
+      const availableAfterRestore = previousStock + previousQuantity
+      if (availableAfterRestore < parsedQuantity) {
+        setIsUpdating(false)
+        toast.error(`Stock insuffisant. Disponible: ${availableAfterRestore}`)
+        return
+      }
+
+      const { error: updateStockError } = await supabase
+        .from("produit")
+        .update({ stock: availableAfterRestore - parsedQuantity })
+        .eq("id", previousProductId)
+
+      if (updateStockError) {
+        setIsUpdating(false)
+        toast.error("Erreur lors de la mise a jour du stock")
+        return
+      }
+    } else {
+      if (nextStock < parsedQuantity) {
+        setIsUpdating(false)
+        toast.error(`Stock insuffisant. Disponible: ${nextStock}`)
+        return
+      }
+
+      const { error: restorePreviousStockError } = await supabase
+        .from("produit")
+        .update({ stock: previousStock + previousQuantity })
+        .eq("id", previousProductId)
+
+      if (restorePreviousStockError) {
+        setIsUpdating(false)
+        toast.error("Erreur lors de la mise a jour du stock")
+        return
+      }
+
+      const { error: deductNextStockError } = await supabase
+        .from("produit")
+        .update({ stock: nextStock - parsedQuantity })
+        .eq("id", nextProductId)
+
+      if (deductNextStockError) {
+        await supabase
+          .from("produit")
+          .update({ stock: previousStock })
+          .eq("id", previousProductId)
+        setIsUpdating(false)
+        toast.error("Erreur lors de la mise a jour du stock")
+        return
+      }
+    }
+
+    const { error: updateSaleError } = await supabase
+      .from("vente")
+      .update({
+        product_id: nextProductId,
+        client_id: nextClientId,
+        quantity: parsedQuantity,
+        price: parsedSalePrice,
+        total: saleTotal,
+        credit: parsedCredit,
+        date: editDate ? toIsoDateValue(editDate) : null,
+        date_credit: effectiveDateCredit ? toIsoDateValue(effectiveDateCredit) : null,
+      })
+      .eq("id", editingSale.id)
+
+    if (updateSaleError) {
+      if (previousProductId === nextProductId) {
+        await supabase
+          .from("produit")
+          .update({ stock: previousStock })
+          .eq("id", previousProductId)
+      } else {
+        await supabase
+          .from("produit")
+          .update({ stock: previousStock })
+          .eq("id", previousProductId)
+        await supabase
+          .from("produit")
+          .update({ stock: nextStock })
+          .eq("id", nextProductId)
+      }
+
+      setIsUpdating(false)
+      toast.error(updateSaleError.message)
+      return
+    }
+
+    setIsUpdating(false)
+    setIsEditDialogOpen(false)
+    setEditingSale(null)
+    toast.success("Vente modifiee")
+    setIsLoading(true)
+    await Promise.all([fetchVentes(), fetchProducts()])
+  }
+
   async function handlePayCredit(venteId: number) {
     setPayingCreditSaleId(venteId)
 
@@ -585,14 +888,14 @@ export default function VentesPage() {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-3 shadow-sm sm:p-4 md:p-5">
+    <section className="app-page app-page-ventes space-y-4 rounded-xl p-3 sm:p-4 md:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-muted p-2">
+          <div className="app-page-icon app-page-icon-ventes">
             <ShoppingCart className="size-4" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Ventes</h2>
+            <h2 className="app-page-title-ventes text-xl font-semibold">Ventes</h2>
           </div>
         </div>
 
@@ -622,40 +925,16 @@ export default function VentesPage() {
               Ajouter vente
             </Button>
           </DialogTrigger>
-          <DialogContent className="app-dialog-content sm:max-w-xl">
+          <DialogContent className="app-dialog-content app-dialog-ventes sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Nouvelle vente</DialogTitle>
               <DialogDescription>
-                Selectionnez un produit, un client et une quantite.
+                Selectionnez un client puis ajoutez plusieurs produits avec le bouton +.
               </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={handleAddVente} className="space-y-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sale-product">Produit</Label>
-                  <CustomSelect
-                    id="sale-product"
-                    value={newProductId}
-                    onChange={handleProductChange}
-                    placeholder="Choisir un produit"
-                    searchable
-                    searchValue={productSearch}
-                    onSearchChange={setProductSearch}
-                    searchPlaceholder="Rechercher un produit..."
-                    isLoading={isLoadingProductOptions}
-                    emptyText="Aucun produit"
-                    onOpenChange={(open) => {
-                      if (open) {
-                        void fetchProductOptions(productSearch)
-                      }
-                    }}
-                    options={productOptions.map((product) => ({
-                      value: String(product.id),
-                      label: `${product.name} (stock: ${product.stock ?? 0})`,
-                    }))}
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="sale-client">Client</Label>
                   <CustomSelect
@@ -680,59 +959,6 @@ export default function VentesPage() {
                     }))}
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sale-quantity">Quantite</Label>
-                  <Input
-                    id="sale-quantity"
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={newQuantity}
-                    onChange={(event) => setNewQuantity(event.target.value)}
-                    placeholder="1"
-                    inputMode="numeric"
-                    className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sale-price">Prix vente</Label>
-                  <Input
-                    id="sale-price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newSalePrice}
-                    onChange={(event) => setNewSalePrice(event.target.value)}
-                    placeholder="0.00"
-                    inputMode="decimal"
-                    className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="sale-credit">Credit</Label>
-                  <Input
-                    id="sale-credit"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newCredit}
-                    onChange={(event) => setNewCredit(event.target.value)}
-                    placeholder="0.00"
-                    inputMode="decimal"
-                    className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <DateField
                   id="sale-date"
                   label="Date de vente"
@@ -740,34 +966,157 @@ export default function VentesPage() {
                   onChange={setNewDate}
                   placeholder="Choisir une date"
                 />
-                {showDateCreditField ? (
-                  <DateField
-                    id="sale-date-credit"
-                    label="Date credit"
-                    value={newDateCredit}
-                    onChange={setNewDateCredit}
-                    placeholder="Choisir une date"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    <Label>Date credit</Label>
-                    <div className="flex h-9 items-center rounded-lg border border-dashed border-input px-3 text-sm text-muted-foreground">
-                      Non requis si credit = 0
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {newProductId && (
-                <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-                  <div>
-                    Stock disponible: <strong>{productOptions.find((item) => item.id === Number(newProductId))?.stock ?? productsById.get(Number(newProductId))?.stock ?? 0}</strong>
-                  </div>
-                  <div>
-                    Cout unitaire: <strong>{(productOptions.find((item) => item.id === Number(newProductId))?.price ?? productsById.get(Number(newProductId))?.price ?? 0).toFixed(2)} Dt</strong>
-                  </div>
+              <div className="space-y-3">
+                <div className="max-h-90 space-y-3 overflow-y-auto pr-1">
+                  {newSaleLines.map((line, index) => {
+                    const selectedProductId = Number(line.productId)
+                    const selectedProduct = Number.isNaN(selectedProductId)
+                      ? null
+                      : (productOptions.find((item) => item.id === selectedProductId)
+                        ?? productsById.get(selectedProductId)
+                        ?? null)
+                    const lineCredit = parseCreditInput(line.credit)
+                    const showLineDateCreditField = lineCredit !== null && lineCredit > 0
+
+                    return (
+                      <div key={line.id} className="space-y-3 rounded-lg border p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">Produit {index + 1}</p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => handleRemoveSaleLine(line.id)}
+                            disabled={newSaleLines.length === 1}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                            <span className="sr-only">Supprimer la ligne</span>
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`sale-product-${line.id}`}>Produit</Label>
+                            <CustomSelect
+                              id={`sale-product-${line.id}`}
+                              value={line.productId}
+                              onChange={(value) => handleLineProductChange(line.id, value)}
+                              placeholder="Choisir un produit"
+                              searchable
+                              searchValue={productSearch}
+                              onSearchChange={setProductSearch}
+                              searchPlaceholder="Rechercher un produit..."
+                              isLoading={isLoadingProductOptions}
+                              emptyText="Aucun produit"
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  void fetchProductOptions(productSearch)
+                                }
+                              }}
+                              options={productOptions.map((product) => ({
+                                value: String(product.id),
+                                label: `${product.name} (stock: ${product.stock ?? 0})`,
+                              }))}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`sale-quantity-${line.id}`}>Quantite</Label>
+                            <Input
+                              id={`sale-quantity-${line.id}`}
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={line.quantity}
+                              onChange={(event) => handleLineChange(line.id, "quantity", event.target.value)}
+                              placeholder="1"
+                              inputMode="numeric"
+                              className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor={`sale-price-${line.id}`}>Prix vente</Label>
+                            <Input
+                              id={`sale-price-${line.id}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.salePrice}
+                              onChange={(event) => handleLineChange(line.id, "salePrice", event.target.value)}
+                              placeholder="0.00"
+                              inputMode="decimal"
+                              className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                              required
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`sale-credit-${line.id}`}>Credit</Label>
+                            <Input
+                              id={`sale-credit-${line.id}`}
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={line.credit}
+                              onChange={(event) => handleLineChange(line.id, "credit", event.target.value)}
+                              placeholder="0.00"
+                              inputMode="decimal"
+                              className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {showLineDateCreditField ? (
+                            <DateField
+                              id={`sale-date-credit-${line.id}`}
+                              label="Date credit"
+                              value={line.dateCredit}
+                              onChange={(value) => handleLineChange(line.id, "dateCredit", value)}
+                              placeholder="Choisir une date"
+                            />
+                          ) : (
+                            <div className="space-y-2">
+                              <Label>Date credit</Label>
+                              <div className="flex h-9 items-center rounded-lg border border-dashed border-input px-3 text-sm text-muted-foreground">
+                                Non requis si credit = 0
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {selectedProduct && (
+                          <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                            <div>
+                              Stock disponible: <strong>{selectedProduct.stock ?? 0}</strong>
+                            </div>
+                            <div>
+                              Cout unitaire: <strong>{(selectedProduct.price ?? 0).toFixed(2)} Dt</strong>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleAddSaleLine}
+                >
+                  <Plus className="size-4" />
+                  Ajouter un autre produit
+                </Button>
+              </div>
 
               <DialogFooter>
                 <Button type="submit" disabled={isSubmitting}>
@@ -862,10 +1211,10 @@ export default function VentesPage() {
             </Empty>
           ) : (
             <>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="app-table-wrap">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="app-table-head-row app-table-head-row-ventes">
                       {visibleColumns.id && <TableHead>ID</TableHead>}
                       {visibleColumns.product && <TableHead>Produit</TableHead>}
                       {visibleColumns.client && <TableHead>Client</TableHead>}
@@ -884,7 +1233,7 @@ export default function VentesPage() {
                         key={sale.id}
                         id={`sale-row-${sale.id}`}
                         className={cn(
-                          "hover:bg-muted/30",
+                          "app-table-row app-table-row-ventes",
                           focusedSaleId === sale.id && "bg-amber-100/60 ring-1 ring-amber-300"
                         )}
                       >
@@ -943,6 +1292,14 @@ export default function VentesPage() {
                             <Button
                               variant="ghost"
                               size="icon-sm"
+                              onClick={() => openEditVenteDialog(sale)}
+                            >
+                              <Pencil className="size-4" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
                               onClick={() => setDeletingSaleId(sale.id)}
                               className="text-destructive hover:text-destructive"
                             >
@@ -981,7 +1338,7 @@ export default function VentesPage() {
 
               {deletingSaleId && (
                 <AlertDialog open={true}>
-                  <AlertDialogContent size="sm" className="app-alert-content">
+                  <AlertDialogContent size="sm" className="app-alert-content app-alert-ventes">
                     <AlertDialogHeader>
                       <div className="mb-2 inline-flex size-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                         <MoreHorizontal className="size-5" />
@@ -1007,6 +1364,133 @@ export default function VentesPage() {
           )}
         </>
       )}
+
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open)
+          if (!open) {
+            setEditingSale(null)
+          }
+        }}
+      >
+        <DialogContent className="app-dialog-content app-dialog-ventes sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Modifier vente</DialogTitle>
+            <DialogDescription>Modifiez les informations de la vente.</DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateVente} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sale-edit-product">Produit</Label>
+                <CustomSelect
+                  id="sale-edit-product"
+                  value={editProductId}
+                  onChange={setEditProductId}
+                  placeholder="Choisir un produit"
+                  options={products.map((product) => ({
+                    value: String(product.id),
+                    label: `${product.name} (stock: ${product.stock ?? 0})`,
+                  }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sale-edit-client">Client</Label>
+                <CustomSelect
+                  id="sale-edit-client"
+                  value={editClientId}
+                  onChange={setEditClientId}
+                  placeholder="Choisir un client"
+                  options={clients.map((client) => ({
+                    value: String(client.id),
+                    label: client.full_name,
+                  }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sale-edit-quantity">Quantite</Label>
+                <Input
+                  id="sale-edit-quantity"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={editQuantity}
+                  onChange={(event) => setEditQuantity(event.target.value)}
+                  inputMode="numeric"
+                  className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sale-edit-price">Prix vente</Label>
+                <Input
+                  id="sale-edit-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editSalePrice}
+                  onChange={(event) => setEditSalePrice(event.target.value)}
+                  inputMode="decimal"
+                  className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="sale-edit-credit">Credit</Label>
+                <Input
+                  id="sale-edit-credit"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={editCredit}
+                  onChange={(event) => setEditCredit(event.target.value)}
+                  inputMode="decimal"
+                  className="h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <DateField
+                id="sale-edit-date"
+                label="Date de vente"
+                value={editDate}
+                onChange={setEditDate}
+                placeholder="Choisir une date"
+              />
+              {showEditDateCreditField ? (
+                <DateField
+                  id="sale-edit-date-credit"
+                  label="Date credit"
+                  value={editDateCredit}
+                  onChange={setEditDateCredit}
+                  placeholder="Choisir une date"
+                />
+              ) : (
+                <div className="space-y-2">
+                  <Label>Date credit</Label>
+                  <div className="flex h-9 items-center rounded-lg border border-dashed border-input px-3 text-sm text-muted-foreground">
+                    Non requis si credit = 0
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button type="submit" disabled={isUpdating}>
+                {isUpdating ? "Mise a jour..." : "Enregistrer"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

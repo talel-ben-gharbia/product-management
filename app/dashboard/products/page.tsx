@@ -384,14 +384,14 @@ export default function ProductsPage() {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-3 shadow-sm sm:p-4 md:p-5">
+    <section className="app-page app-page-products space-y-4 rounded-xl p-3 sm:p-4 md:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-muted p-2">
+          <div className="app-page-icon app-page-icon-products">
             <Package className="size-4" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold">Produits</h2>
+            <h2 className="app-page-title-products text-xl font-semibold">Produits</h2>
             
           </div>
         </div>
@@ -412,7 +412,7 @@ export default function ProductsPage() {
               Ajouter produit
             </Button>
           </DialogTrigger>
-          <DialogContent className="app-dialog-content">
+          <DialogContent className="app-dialog-content app-dialog-products">
             <DialogHeader>
               <DialogTitle>Nouveau produit</DialogTitle>
               <DialogDescription>
@@ -578,10 +578,10 @@ export default function ProductsPage() {
             </Empty>
           ) : (
             <>
-              <div className="border rounded-lg overflow-hidden">
+              <div className="app-table-wrap">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="app-table-head-row app-table-head-row-products">
                       {visibleColumns.id && <TableHead>ID</TableHead>}
                       {visibleColumns.name && <TableHead>Nom</TableHead>}
                       {visibleColumns.categorie && <TableHead>Categorie</TableHead>}
@@ -593,7 +593,7 @@ export default function ProductsPage() {
                   </TableHeader>
                   <TableBody>
                     {paginatedProducts.map((product) => (
-                      <TableRow key={product.id} className="hover:bg-muted/30">
+                      <TableRow key={product.id} className="app-table-row app-table-row-products">
                         {visibleColumns.id && <TableCell>{product.id}</TableCell>}
                         {visibleColumns.name && <TableCell>{product.name}</TableCell>}
                         {visibleColumns.categorie && <TableCell>{product.categorie?.name ?? "-"}</TableCell>}
@@ -691,7 +691,7 @@ export default function ProductsPage() {
               {/* Delete Confirmation Dialog */}
               {deletingProductId && (
                 <AlertDialog open={true}>
-                  <AlertDialogContent size="sm" className="app-alert-content">
+                  <AlertDialogContent size="sm" className="app-alert-content app-alert-products">
                     <AlertDialogHeader>
                       <div className="mb-2 inline-flex size-10 items-center justify-center rounded-md bg-destructive/10 text-destructive">
                         <MoreHorizontal className="size-5" />
@@ -721,7 +721,7 @@ export default function ProductsPage() {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="app-dialog-content">
+        <DialogContent className="app-dialog-content app-dialog-products">
           <DialogHeader>
             <DialogTitle>Modifier le produit</DialogTitle>
             <DialogDescription>
